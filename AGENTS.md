@@ -32,6 +32,13 @@ pi-daily/
 - 不硬编码 API Key、token、私有路径。
 - 解析 session 时必须容忍坏行、旧版本字段和缺失字段。
 
+## Pi 包加载约束
+
+- `@earendil-works/pi-ai`、`@earendil-works/pi-coding-agent` 等 Pi 包可能是 ESM-only（仅支持 ESM 导入）并通过 `exports.import` 暴露入口，禁止用 `require()` 或 `createRequire()` 加载。
+- 为了绕开 `tsc` 类型检查变慢，也不能把 ESM-only 包改成 `require()`；这会在运行时报 `No "exports" main defined`，导致 AI 总结 fallback。
+- 如需避免 TypeScript 静态展开大依赖，优先用本地最小类型接口或动态 `import()`，并必须用 `node -e 'import("包名")'` 或相关测试验证运行时加载。
+- 动态加载 pi-ai 的正确姿势：用 `import.meta.resolve` 定位包根，拼出窄入口（如 `dist/stream.js`）的 file URL，再用**变量 specifier 的标准动态 `import(url)`**。不要用 `new Function("return import(...)")`——jiti 运行时会报 `A dynamic import callback was not specified`。变量 specifier 能让 tsc 返回 `any` 不展开类型树，同时运行时 jiti 原生支持。
+
 ## README 规则
 
 - 含代码目录必须有 `README.md`。
