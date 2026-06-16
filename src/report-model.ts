@@ -2,11 +2,12 @@ import os from "node:os";
 import path from "node:path";
 
 import { scanSessions } from "./session-scan.ts";
-import { filterSessionsByDate } from "./session-extract.ts";
-import type { DailyProjectFilter, ParsedSession, ProjectSummary, ReportModel, ScanError, SessionActivity, TimedText, ToolCount } from "./types.ts";
+import { createDefaultWindow, filterSessionsByWindow } from "./session-extract.ts";
+import type { DailyProjectFilter, ParsedSession, ProjectSummary, ReportModel, ScanError, SessionActivity, TimeWindow, TimedText, ToolCount } from "./types.ts";
 
 export interface BuildReportModelInput {
 	date: string;
+	window?: TimeWindow;
 	sessions: ParsedSession[];
 	scanErrors?: ScanError[];
 	projectFilter?: DailyProjectFilter;
@@ -15,6 +16,7 @@ export interface BuildReportModelInput {
 
 export interface GenerateDailyReportOptions {
 	date: string;
+	window?: TimeWindow;
 	project?: DailyProjectFilter;
 	currentCwd?: string;
 	sessionRoot?: string;
@@ -100,8 +102,8 @@ function buildProjects(activities: SessionActivity[]): ProjectSummary[] {
 	}));
 }
 
-export function buildReportModel({ date, sessions, scanErrors = [], projectFilter = "all", currentCwd = "" }: BuildReportModelInput): ReportModel {
-	let sessionActivities = filterSessionsByDate(sessions, date).map(({ activity }) => activity);
+export function buildReportModel({ date, window = createDefaultWindow(date), sessions, scanErrors = [], projectFilter = "all", currentCwd = "" }: BuildReportModelInput): ReportModel {
+	let sessionActivities = filterSessionsByWindow(sessions, date, window).map(({ activity }) => activity);
 	if (projectFilter === "current" && currentCwd) {
 		sessionActivities = sessionActivities.filter((activity) => path.resolve(activity.cwd || ".") === path.resolve(currentCwd));
 	}
@@ -122,6 +124,7 @@ export function buildReportModel({ date, sessions, scanErrors = [], projectFilte
 
 	return {
 		date,
+		window,
 		generatedAt: new Date().toISOString(),
 		projectFilter,
 		currentCwd,
@@ -153,6 +156,7 @@ export async function generateDailyReportModel(options: GenerateDailyReportOptio
 	const scanResult = await scanSessions({ sessionRoot: options.sessionRoot });
 	return buildReportModel({
 		date: options.date,
+		window: options.window,
 		sessions: scanResult.sessions,
 		scanErrors: scanResult.errors,
 		projectFilter: options.project || "all",

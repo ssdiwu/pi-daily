@@ -4,6 +4,20 @@ export interface DailyOptions {
 	date: string;
 	save: boolean;
 	project: DailyProjectFilter;
+	window: TimeWindow;
+	confirmation?: DailyConfirmation;
+}
+
+export interface DailyConfirmation {
+	title: string;
+	message: string;
+}
+
+export interface TimeWindow {
+	start: Date;
+	end: Date;
+	label: string;
+	dayStart?: string;
 }
 
 export interface TimedText {
@@ -62,6 +76,7 @@ export interface ToolActivity {
 
 export interface SessionActivity {
 	targetDate: string;
+	window: TimeWindow;
 	sessionId: string;
 	file?: string;
 	cwd: string;
@@ -114,6 +129,7 @@ export interface ReportStats {
 
 export interface ReportModel {
 	date: string;
+	window: TimeWindow;
 	generatedAt: string;
 	projectFilter: DailyProjectFilter;
 	currentCwd: string;
@@ -136,6 +152,7 @@ export interface BuildDailyRuntime {
 	sessionRoot?: string;
 	ctx?: any;
 	build?: string;
+	options?: DailyOptions;
 }
 
 export interface BuildDailyResult {

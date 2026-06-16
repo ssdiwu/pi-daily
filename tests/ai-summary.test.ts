@@ -5,6 +5,7 @@ import { buildSummaryFacts, buildSummaryPrompt } from "../src/ai-summary.ts";
 
 const report = {
 	date: "2026-06-12",
+	window: { start: new Date("2026-06-12T00:00:00"), end: new Date("2026-06-13T00:00:00"), label: "2026-06-12 00:00 → 2026-06-13 00:00" },
 	generatedAt: "2026-06-12T00:00:00.000Z",
 	projectFilter: "all",
 	currentCwd: "",
@@ -55,16 +56,27 @@ test("buildSummaryFacts returns redacted structured facts", () => {
 	assert.equal(facts.signals[0].type, "completed");
 	assert.equal(facts.projects[0].name, "pi-daily");
 	assert.equal(facts.projects[1].name, "ai-database-vault");
+	assert.equal(facts.window, "2026-06-12 00:00 → 2026-06-13 00:00");
 });
 
 test("buildSummaryPrompt includes markdown instructions and facts", () => {
 	const prompt = buildSummaryPrompt(report, 5, "zh-CN");
-	assert.match(prompt, /## 项目\/事项一：<项目名或事项名>/);
-	assert.match(prompt, /## 项目\/事项二：<项目名或事项名>/);
-	assert.match(prompt, /默认工作区/);
+	assert.match(prompt, /# 2026-06-12 工作日报/);
+	assert.match(prompt, /<项目名或事项名一>/);
+	assert.match(prompt, /<项目名或事项名二>/);
 	assert.match(prompt, /### 进展/);
 	assert.match(prompt, /### 产出/);
 	assert.match(prompt, /### 阻塞 \/ 风险/);
 	assert.match(prompt, /### 待跟进/);
+	assert.match(prompt, /今日概览/);
+	assert.match(prompt, /请用简体中文输出整份日报/);
+	assert.match(prompt, /统计范围/);
 	assert.match(prompt, /结构化事实 JSON/);
+});
+
+test("buildSummaryPrompt uses English instruction for en-US", () => {
+	const prompt = buildSummaryPrompt(report, 5, "en-US");
+	assert.match(prompt, /# Work report for 2026-06-12/);
+	assert.match(prompt, /in English\. All headings/);
+	assert.match(prompt, /## Overview/);
 });

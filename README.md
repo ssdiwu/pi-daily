@@ -12,9 +12,14 @@
 
 | Scenario | Behavior |
 |---|---|
-| Run `/daily` | Generates today's work report from local Pi sessions |
+| Run `/daily` | Generates today's work report from local Pi sessions. Run between 00:00-05:00 and it auto-traces the previous workday (`yesterday 05:00 → today 05:00`) so overnight work is included |
 | Run `/daily YYYY-MM-DD` | Generates a report for a specific date |
 | Run `/daily --project current` | Restricts the report to the current working directory |
+| Run `/daily 昨晚到今天凌晨` | Uses natural language to pick an overnight work window |
+| Run `/daily 最近 8 小时` | Generates a report for a relative time window |
+| Run `/daily --day-start 05:00` | Advanced form: treats the workday as `05:00 → next day 05:00`; before 05:00 it belongs to the previous workday |
+| Run `/daily --since 18:00 --until 02:00` | Advanced form: generates a custom time window that can cross midnight |
+| Run `/daily --from 2026-06-12T20:00 --to 2026-06-13T03:00` | Advanced form: uses an absolute time range |
 | Run `/daily --save` | Saves the generated report to `~/Documents/pi-daily-reports/` |
 | AI summary fails | Falls back to a local rule-based Markdown report |
 
@@ -55,6 +60,10 @@ Pi already stores session activity locally. `pi-daily` reads those session files
 `pi-daily` directly uses the current conversation model. There is no separate model configuration file and no package-level fallback model chain.
 
 If the current conversation model call fails, `pi-daily` falls back to the local rule-based Markdown report.
+
+## Internationalization
+
+Headings, stat lines, and AI language instructions are localized, following the `pi-compaction-i18n` pattern. Language is auto-detected from `PI_LOCALE` > `LC_ALL` > `LANG` and supports 11 languages: Simplified Chinese, Traditional Chinese, Japanese, Korean, German, French, Spanish, Portuguese, Russian, Arabic, and English (default).
 
 ## Output shape
 
@@ -113,6 +122,21 @@ Then run:
 
 ```text
 /daily
+```
+
+If you work past midnight, you can use natural language first. Pi will confirm the interpreted time window before generating:
+
+```text
+/daily 昨晚到今天凌晨
+/daily 昨晚加班
+/daily 最近 8 小时
+```
+
+Advanced deterministic forms are still available:
+
+```text
+/daily --day-start 05:00
+/daily 2026-06-12 --since 18:00 --until 02:00
 ```
 
 If you want to save the report:

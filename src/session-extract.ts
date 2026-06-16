@@ -1,7 +1,7 @@
 import path from "node:path";
 
 import { truncateText } from "./redact.ts";
-import type { MutableSessionActivity, ParsedSession, SessionActivity, SessionEntry, SessionMessage, TimedText, ToolActivity } from "./types.ts";
+import type { MutableSessionActivity, ParsedSession, SessionActivity, SessionEntry, SessionMessage, TimeWindow, TimedText, ToolActivity } from "./types.ts";
 
 const PATH_PATTERN = /(?:^|\s)(?:[./~\w-]*\/?[\w.-]+\.[A-Za-z0-9]{1,8}|[./~\w-]+\/[\w./-]+)/g;
 const COMPLETION_PATTERN = /(已处理|已完成|已更新|已修复|已调整|已回复|已保存|已关闭|已恢复|已移除|已推送|已安装|已配置|已改好|已补好|搞定了|处理完了|完成了|done|fixed|updated|saved|replied|resolved|handled)/i;
@@ -37,15 +37,23 @@ function getLocalDateString(date: Date): string {
 	return `${date.getFullYear()}-${month}-${day}`;
 }
 
+export function createDefaultWindow(targetDate: string): TimeWindow {
+	const [year, month, day] = targetDate.split("-").map(Number);
+	const start = new Date(year, month - 1, day, 0, 0, 0, 0);
+	const end = new Date(start);
+	end.setDate(end.getDate() + 1);
+	return { start, end, label: `${targetDate} 00:00 → ${getLocalDateString(end)} 00:00`, dayStart: "00:00" };
+}
+
 function formatTime(timestamp: Timestamp): string {
 	const date = toDate(timestamp);
 	if (!date) return "";
 	return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function isSameDay(timestamp: Timestamp, targetDate: string): boolean {
+function isInsideWindow(timestamp: Timestamp, window: TimeWindow): boolean {
 	const date = toDate(timestamp);
-	return date ? getLocalDateString(date) === targetDate : false;
+	return date ? date >= window.start && date < window.end : false;
 }
 
 function extractText(content: unknown): string {
@@ -94,11 +102,12 @@ function getToolFilePaths(toolName: string, args: Record<string, unknown> = {}):
 	return [];
 }
 
-function createActivity(session: ParsedSession, targetDate: string): MutableSessionActivity {
+function createActivity(session: ParsedSession, targetDate: string, window: TimeWindow): MutableSessionActivity {
 	const header = session.header || {};
 	const cwd = typeof header.cwd === "string" ? header.cwd : "";
 	return {
 		targetDate,
+		window,
 		sessionId: typeof header.id === "string" ? header.id : session.file || "",
 		file: session.file,
 		cwd,
@@ -199,6 +208,7 @@ function finalizeActivity(activity: MutableSessionActivity): SessionActivity {
 	const activeTimes = activity.activeTimes;
 	return {
 		targetDate: activity.targetDate,
+		window: activity.window,
 		sessionId: activity.sessionId,
 		file: activity.file,
 		cwd: activity.cwd,
@@ -217,11 +227,11 @@ function finalizeActivity(activity: MutableSessionActivity): SessionActivity {
 	};
 }
 
-export function extractSessionActivity(session: ParsedSession, targetDate: string): SessionActivity {
-	const activity = createActivity(session, targetDate);
+export function extractSessionActivity(session: ParsedSession, targetDate: string, window: TimeWindow = createDefaultWindow(targetDate)): SessionActivity {
+	const activity = createActivity(session, targetDate, window);
 	for (const entry of session.entries || []) {
 		const timestamp = getTimestamp(entry);
-		if (entry.type !== "message" || !isSameDay(timestamp, targetDate)) continue;
+		if (entry.type !== "message" || !isInsideWindow(timestamp, window)) continue;
 
 		const message = entry.message || {};
 		activity.activeEntryCount += 1;
@@ -241,8 +251,12 @@ export function extractSessionActivity(session: ParsedSession, targetDate: strin
 	return finalizeActivity(activity);
 }
 
-export function filterSessionsByDate(sessions: ParsedSession[], targetDate: string): Array<{ session: ParsedSession; activity: SessionActivity }> {
+export function filterSessionsByWindow(sessions: ParsedSession[], targetDate: string, window: TimeWindow): Array<{ session: ParsedSession; activity: SessionActivity }> {
 	return (sessions || [])
-		.map((session) => ({ session, activity: extractSessionActivity(session, targetDate) }))
+		.map((session) => ({ session, activity: extractSessionActivity(session, targetDate, window) }))
 		.filter(({ activity }) => activity.activeEntryCount > 0);
+}
+
+export function filterSessionsByDate(sessions: ParsedSession[], targetDate: string): Array<{ session: ParsedSession; activity: SessionActivity }> {
+	return filterSessionsByWindow(sessions, targetDate, createDefaultWindow(targetDate));
 }
