@@ -20,6 +20,7 @@
 | Run `/daily --day-start 05:00` | Advanced form: treats the workday as `05:00 → next day 05:00`; before 05:00 it belongs to the previous workday |
 | Run `/daily --since 18:00 --until 02:00` | Advanced form: generates a custom time window that can cross midnight |
 | Run `/daily --from 2026-06-12T20:00 --to 2026-06-13T03:00` | Advanced form: uses an absolute time range |
+| Language | Auto-detected from `PI_LOCALE` > `LC_ALL` > `LANG`; 11 languages supported (zh-Hans/zh-Hant/ja/ko/de/fr/es/pt/ru/ar/en) |
 | Run `/daily --save` | Saves the generated report to `~/Documents/pi-daily-reports/` |
 | AI summary fails | Falls back to a local rule-based Markdown report |
 

@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.1.0 - 2026-06-17
+
+Focus: make overnight work and multilingual output first-class.
+
+### New
+
+- Auto-trace previous workday: running `/daily` between 00:00-05:00 uses `yesterday 05:00 → today 05:00` so overnight work is never lost.
+- Natural-language time windows: `昨晚到今天凌晨`, `最近 8 小时`, `昨天晚上 8 点到凌晨 2 点`, etc.
+- Deterministic time windows for advanced users: `--day-start`, `--since/--until`, `--from/--to`.
+- Internationalization: 11 languages (Simplified/Traditional Chinese, Japanese, Korean, German, French, Spanish, Portuguese, Russian, Arabic, English), auto-detected from `PI_LOCALE` > `LC_ALL` > `LANG`.
+- Confirmation prompt before generating when a natural-language window is interpreted, to avoid wrong time ranges.
+
+### Fixed
+
+- AI summary no longer falls back due to package loading: `@earendil-works/pi-ai` is now loaded via `import.meta.resolve` + a variable-specifier dynamic `import()` of its narrow `stream.js` entry. Eliminates both `No "exports" main defined` (require) and `A dynamic import callback was not specified` (new Function) errors.
+
+### Docs
+
+- AGENTS.md now documents the Pi ESM package loading constraint to prevent recurrence.
+
 ## 0.0.1 - 2026-06-13
 
 Initial public release.
