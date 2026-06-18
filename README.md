@@ -64,7 +64,9 @@ If the current conversation model call fails, `pi-daily` falls back to the local
 
 ## Internationalization
 
-Headings, stat lines, and AI language instructions are localized, following the `pi-compaction-i18n` pattern. Language is auto-detected from `PI_LOCALE` > `LC_ALL` > `LANG` and supports 11 languages: Simplified Chinese, Traditional Chinese, Japanese, Korean, German, French, Spanish, Portuguese, Russian, Arabic, and English (default).
+Headings, stat lines, AI language instructions, and AI prompt scaffolding are localized, following the `pi-compaction-i18n` pattern. Language is auto-detected from `PI_LOCALE` > `LC_ALL` > `LANG` and supports 11 languages: Simplified Chinese, Traditional Chinese, Japanese, Korean, German, French, Spanish, Portuguese, Russian, Arabic, and English (default).
+
+That includes project placeholder headings and section scaffolding inside the AI summary prompt, so non-Chinese locales no longer inherit Chinese-only prompt structure.
 
 ## Output shape
 

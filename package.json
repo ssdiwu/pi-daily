@@ -1,6 +1,6 @@
 {
   "name": "pi-daily",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Daily work reports for Pi from local session activity.",
   "type": "module",
   "keywords": [

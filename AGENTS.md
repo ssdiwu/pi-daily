@@ -31,6 +31,7 @@ pi-daily/
 - 默认不写入用户工作目录；只有用户显式传保存参数时才写文件。
 - 不硬编码 API Key、token、私有路径。
 - 解析 session 时必须容忍坏行、旧版本字段和缺失字段。
+- 新增用户可见标题、统计文案或 AI prompt 骨架时，必须同步 `src/report-labels.ts` 与 `src/ai-summary.ts` 的多语言文案，并补对应测试。
 
 ## Pi 包加载约束
 

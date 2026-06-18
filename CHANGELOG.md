@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.1 - 2026-06-19
+
+Focus: fully localize AI daily-report scaffolding across supported locales.
+
+### Fixed
+
+- AI summary prompt scaffolding is now localized across all 11 supported languages, including project placeholders, section headings, cross-project observation labels, and facts-intro instructions.
+- Added prompt-localization tests across all supported locales to prevent Chinese-only scaffolding from leaking into non-Chinese reports.
+
+### Docs
+
+- README.md and AGENTS.md now document the localized AI prompt scaffolding rule and version bump.
+
 ## 0.1.0 - 2026-06-17
 
 Focus: make overnight work and multilingual output first-class.
