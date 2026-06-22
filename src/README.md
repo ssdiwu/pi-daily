@@ -7,7 +7,8 @@
 | 文件 | 职责 |
 |---|---|
 | `args.ts` | 解析 `/daily` 命令参数，优先接入自然语言时间窗口，兼容确定性参数 |
-| `natural-time.ts` | 将“昨晚到今天凌晨”“最近 8 小时”等自然语言转成时间窗口 |
+| `natural-time.ts` | 离线正则版：将“昨晚到今天凌晨”“最近 8 小时”等自然语言转成时间窗口 |
+| `natural-time-ai.ts` | LLM 语义版：用当前会话模型解析任意自然语言时间范围，作为正则版的优先路径，失败回退正则 |
 | `time-window.ts` | 时间窗口、日期和本地时间格式化工具 |
 | `locale.ts` | 语言检测与映射（PI_LOCALE > LC_ALL > LANG），收敛成 SupportedLanguage 枚举 |
 | `report-labels.ts` | 日报 UI 文案多语言字典，参考 pi-compaction-i18n 的 SECTION_LABELS 模式 |

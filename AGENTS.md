@@ -37,6 +37,7 @@ pi-daily/
 
 - `~/Documents/pi-daily-reports/YYYY-MM-DD.md` 是后续自动化（如 cron 任务、梦境总结、跨日回看）的稳定输入，改保存路径、文件名格式或日期归属规则前必须同步更新 README / doc 并补迁移说明。
 - 默认工作日边界是 `05:00 → 次日 05:00`；改 natural language（自然语言）时间解析、`--day-start` 或凌晨回溯逻辑时，必须用跨午夜样例验证连续日期序列不会断裂。
+- 时间解析走“LLM 语义解析（`natural-time-ai.ts`）优先 + 正则离线版（`natural-time.ts`）兑底”：自然语言表达无穷尽，正则易把“6月”里的数字误读成小时；LLM 解析失败或无 ctx 时必须能完整回退到正则，两条路径都要有测试和 smoke test 覆盖。
 - `--save` 必须保持幂等：同一天重跑可以覆盖同一路径，但不能产生随机文件名或多份同义报告，除非用户显式指定。
 - 报告内容要保留足够结构化的“项目/事项、产出、阻塞/风险、待跟进、跨项目观察”，避免只生成散文式总结，保证后续 agent 能继续读取。
 
@@ -58,9 +59,24 @@ pi-daily/
 改动后至少执行：
 
 ```bash
-npm run check
-npm test
+npm run check   # tsc 类型检查
+npm test        # 单元测试（纯函数）
+npm run smoke   # handler 调用链 smoke test（加载 index.ts，mock ctx 跑 /daily handler）
 ```
+
+或一次跑全链路：`npm run verify`。
+
+### 为什么三层都要跑
+
+- **单元测试**只验纯函数（解析、渲染、脱敏），不覆盖 extension 入口。
+- **smoke test** 用 Node 原生 TS stripping 加载 `index.ts`，调用 `default(pi)` 让命令注册，再用 mock ctx 跑 handler，覆盖「入口 → 命令注册 → 参数解析 → 回退」整条链路。时间解析、窗口计算这类 bug 常常只在真实调用链里暴露，单元测试抓不到。
+- **`pi -ne -e index.ts`** 验证 extension 在 pi 的 jiti 加载器下能干净加载、命令注册不抛错。注意：`-p` 模式下 slash command 不会路由到 handler（pi 的输入解析层只在交互模式查命令），所以它只验证加载成功，不验证 handler 行为——handler 行为靠 smoke test。
+
+### smoke test 约定
+
+- 改 `index.ts`、`args.ts`、`natural-time.ts`、`natural-time-ai.ts`、`time-window.ts` 任一文件后，必须跑 `npm run smoke`。
+- 新增时间解析路径或回退分支时，在 `tests/smoke-daily-handler.mts` 补一个对应 case（mock ctx + 断言 window label）。
+- smoke test 不允许依赖网络或真实模型调用（用 mock ctx 触发回退路径）。
 
 如无法执行，说明 blocker、影响范围和后续验证方式。
 
@@ -71,7 +87,7 @@ npm test
 1. 同步版本号：`package.json` + `package-lock.json`。
 2. 更新 `CHANGELOG.md`，把用户可见变更、文档变更和验证结果落到对应版本段。
 3. 确认 `package.json` 版本、`CHANGELOG.md` 版本段、`git tag v<x.y.z>` 三者一致。
-4. 运行验证：`npm run check` + `npm test`；涉及真实 Pi 命令时再做 `/daily` smoke test。
+4. 运行验证：`npm run verify`（check + test + smoke）；发版前另跑一次 `pi -ne -e index.ts` 确认 pi 能干净加载，再手测 `/daily`。
 5. 提交单一主题 commit，再 `git tag v<x.y.z>`。
 6. 发布：`npm publish`；发布后 `git push && git push --tags`。
 

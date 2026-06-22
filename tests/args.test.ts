@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseDailyArgs } from "../src/args.ts";
+import { parseDailyArgs, parseDailyArgsAsync } from "../src/args.ts";
 
 test("parseDailyArgs defaults to today's local date", () => {
 	const options = parseDailyArgs("", new Date("2026-06-12T10:00:00"));
@@ -56,4 +56,42 @@ test("parseDailyArgs keeps today as default outside early morning", () => {
 	const options = parseDailyArgs("", new Date("2026-06-17T08:00:00"));
 	assert.equal(options.date, "2026-06-17");
 	assert.match(options.window.label, /2026-06-17 00:00 → 2026-06-18 00:00/);
+});
+
+test("parseDailyArgsAsync falls back to regex when LLM throws", async () => {
+	// ctx 有 model 但鉴权报错 → LLM 路径报错 → 回退正则，仍产生 confirmation。
+	const ctx = {
+		model: { provider: "x", id: "y" },
+		modelRegistry: {
+			getApiKeyAndHeaders: async () => {
+				throw new Error("offline");
+			},
+		},
+	};
+	const options = await parseDailyArgsAsync("昨晚到今天凌晨", new Date("2026-06-13T09:00:00"), ctx);
+	assert.equal(options.date, "2026-06-12");
+	assert.match(options.window.label, /2026-06-12 18:00 → 2026-06-13 05:00/);
+	assert.ok(options.confirmation, "fallback must still carry a confirmation");
+	assert.match(options.confirmation!.message, /2026-06-12 18:00 → 2026-06-13 05:00/);
+});
+
+test("parseDailyArgsAsync respects advanced flags without calling LLM", async () => {
+	// advanced flag 路径不应触发 LLM（即使 ctx 会报错，也能拿到正确 options）
+	const ctx = {
+		model: { provider: "x", id: "y" },
+		modelRegistry: {
+			getApiKeyAndHeaders: async () => {
+				throw new Error("should not be called");
+			},
+		},
+	};
+	const options = await parseDailyArgsAsync("2026-06-12 --day-start 05:00", new Date("2026-06-12T10:00:00"), ctx);
+	assert.equal(options.date, "2026-06-12");
+	assert.match(options.window.label, /2026-06-12 05:00 → 2026-06-13 05:00/);
+});
+
+test("parseDailyArgsAsync without ctx behaves like sync parseDailyArgs", async () => {
+	const options = await parseDailyArgsAsync("最近 8 小时", new Date("2026-06-13T02:30:00"));
+	assert.equal(options.date, "2026-06-12");
+	assert.match(options.window.label, /2026-06-12 18:30 → 2026-06-13 02:30/);
 });

@@ -1,4 +1,4 @@
-import { parseDailyArgs } from "./src/args.ts";
+import { parseDailyArgsAsync } from "./src/args.ts";
 import { buildDailyReport, saveDailyReport } from "./src/daily.ts";
 import type { ReportStats } from "./src/types.ts";
 
@@ -24,7 +24,7 @@ export default function piDaily(pi: PiDailyApi) {
 	pi.registerCommand("daily", {
 		description: "Generate a daily work report from local Pi session activity",
 		handler: async (args, ctx) => {
-			const options = parseDailyArgs(args);
+			const options = await parseDailyArgsAsync(args, new Date(), ctx);
 			if (options.confirmation && ctx.hasUI) {
 				const ok = await ctx.ui.confirm(options.confirmation.title, options.confirmation.message);
 				if (!ok) {

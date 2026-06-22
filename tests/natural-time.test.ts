@@ -44,3 +44,17 @@ test("parseNaturalDailyArgs understands workday boundary", () => {
 	assert.equal(result.date, "2026-06-12");
 	assert.match(result.window.label, /2026-06-12 05:00 → 2026-06-13 05:00/);
 });
+
+test("parseNaturalDailyArgs understands absolute date range with clocks", () => {
+	const result = parseNaturalDailyArgs("6月21号凌晨5点到6月22号凌晨5点", new Date("2026-06-22T10:00:00"));
+	assert.ok(result);
+	assert.equal(result.date, "2026-06-21");
+	assert.match(result.window.label, /2026-06-21 05:00 → 2026-06-22 05:00/);
+});
+
+test("parseNaturalDailyArgs handles absolute date range inside a sentence", () => {
+	const result = parseNaturalDailyArgs("帮我跑6月21号凌晨5点到6月22号凌晨5点的日报出来", new Date("2026-06-22T10:00:00"));
+	assert.ok(result);
+	assert.equal(result.date, "2026-06-21");
+	assert.match(result.window.label, /2026-06-21 05:00 → 2026-06-22 05:00/);
+});

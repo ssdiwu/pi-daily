@@ -133,7 +133,10 @@ If you work past midnight, you can use natural language first. Pi will confirm t
 /daily 昨晚到今天凌晨
 /daily 昨晚加班
 /daily 最近 8 小时
+/daily 6月21号凌晨5点到6月22号凌晨5点
 ```
+
+Natural-language time parsing uses the current conversation model for semantic understanding (handles arbitrary phrasing, absolute dates, relative terms), and falls back to a local regex parser when the model is unavailable. A confirmation prompt always lets you verify or cancel the interpreted window before the report is generated.
 
 Advanced deterministic forms are still available:
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.2 - 2026-06-22
+
+Focus: LLM-first natural-language time parsing with regex fallback.
+
+### Fixed
+
+- Absolute-date natural-language ranges like `6月21号凌晨5点到6月22号凌晨5点` were mis-parsed as `2026-06-22 06:00 → 2026-06-23 06:00`. Two compounding bugs: the regex clock parser matched the `6` in `6月` as the hour, and `dateByKeyword` ignored absolute dates (only relative words like 昨天/明天). Fixed by stripping absolute dates out of the clock-parsing segment and returning them explicitly, plus a regression test.
+
+### New
+
+- LLM-first time parsing: non-advanced-flag inputs now go through the current conversation model for semantic time-range understanding (`natural-time-ai.ts`), handling arbitrary phrasing (absolute dates, relative terms, embedded-in-sentence). Falls back to the regex parser when the model is unavailable, auth fails, or the model returns a malformed/low-confidence result. The confirmation prompt is retained on both paths.
+- Smoke test for the extension handler call chain (`tests/smoke-daily-handler.mts`): loads `index.ts`, registers the `/daily` command via a mock pi, and runs the handler with mock ctx across regex-fallback, LLM-fallback, and advanced-flag paths. Added `npm run smoke` and `npm run verify` (check + test + smoke).
+
+### Docs
+
+- AGENTS.md now documents the three-layer verification discipline (unit test → smoke test → `pi -ne -e` load check) and the LLM-first + regex-fallback time-parsing rule, to prevent recurrence of the mis-parse bug.
+
 ## 0.1.1 - 2026-06-19
 
 Focus: fully localize AI daily-report scaffolding across supported locales.

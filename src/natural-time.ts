@@ -81,10 +81,17 @@ function withConfirmation(date: string, window: TimeWindow): NaturalDailyParseRe
 }
 
 function makeWindow(date: string, startClock: Clock, endClock: Clock): NaturalDailyParseResult {
-	const start = withClock(date, startClock);
-	const end = withClock(date, endClock);
-	if (end <= start) end.setDate(end.getDate() + 1);
-	return withConfirmation(date, { start, end, label: buildWindowLabel(start, end) });
+	return makeWindowFromParts(date, startClock, date, endClock);
+}
+
+function makeWindowFromParts(startDate: string, startClock: Clock, endDate: string, endClock: Clock): NaturalDailyParseResult {
+	const start = withClock(startDate, startClock);
+	const end = withClock(endDate, endClock);
+	if (end <= start) {
+		const rolled = addDays(end, 1);
+		return withConfirmation(startDate, { start, end: rolled, label: buildWindowLabel(start, rolled) });
+	}
+	return withConfirmation(startDate, { start, end, label: buildWindowLabel(start, end) });
 }
 
 function parseRecentHours(text: string, now: Date): NaturalDailyParseResult | undefined {
@@ -121,13 +128,40 @@ function parseDefaultPeriod(text: string, now: Date): NaturalDailyParseResult | 
 	return undefined;
 }
 
+// 从一段文本里抽出绝对日期（如 "6月21号"、"2026年6月21日"），并返回剩余文本。
+// 剩余文本里的时钟解析才不会把 "6月" 的数字误读成小时。
+const ABSOLUTE_DATE_PATTERN = /(?:\d{4}\s*[-年]\s*)?(\d{1,2})\s*[-月]\s*(\d{1,2})\s*[号日]?/;
+
+function parseAbsoluteDate(segment: string, now: Date): { date: string | undefined; rest: string } {
+	if (!/\d{1,2}\s*[-月]\s*\d{1,2}/.test(segment)) return { date: undefined, rest: segment };
+	const match = segment.match(ABSOLUTE_DATE_PATTERN);
+	if (!match) return { date: undefined, rest: segment };
+	const year = now.getFullYear();
+	const month = Number(match[1]);
+	const day = Number(match[2]);
+	if (month < 1 || month > 12 || day < 1 || day > 31) return { date: undefined, rest: segment };
+	const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+	return { date, rest: segment.replace(match[0], " ") };
+}
+
+function parseDateAndClock(segment: string, now: Date): { date: string | undefined; clock: Clock | undefined } {
+	const { date, rest } = parseAbsoluteDate(segment, now);
+	return { date, clock: parseClock(rest) };
+}
+
 function parseClockRange(text: string, now: Date): NaturalDailyParseResult | undefined {
 	const match = text.match(/(.+?)(?:到|至|—|-)\s*(.+)/);
 	if (!match) return undefined;
-	const startClock = parseClock(match[1]) || (/昨晚|昨夜|昨天晚上|今晚|晚上/.test(match[1]) ? { hour: 18, minute: 0 } : undefined);
-	const endClock = parseClock(match[2]) || (/凌晨/.test(match[2]) ? { hour: 5, minute: 0 } : undefined);
+	const startSeg = match[1];
+	const endSeg = match[2];
+	const startParsed = parseDateAndClock(startSeg, now);
+	const endParsed = parseDateAndClock(endSeg, now);
+	const startClock = startParsed.clock || (/昨晚|昨夜|昨天晚上|今晚|晚上/.test(startSeg) ? { hour: 18, minute: 0 } : undefined);
+	const endClock = endParsed.clock || (/凌晨/.test(endSeg) ? { hour: 5, minute: 0 } : undefined);
 	if (!startClock || !endClock) return undefined;
-	return makeWindow(dateByKeyword(match[1], now), startClock, endClock);
+	const startDate = startParsed.date || dateByKeyword(startSeg, now);
+	const endDate = endParsed.date || startDate;
+	return makeWindowFromParts(startDate, startClock, endDate, endClock);
 }
 
 export function parseNaturalDailyArgs(rawArgs: string, now = new Date()): NaturalDailyParseResult | undefined {
