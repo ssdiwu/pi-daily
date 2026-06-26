@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.3 - 2026-06-26
+
+Focus: restore AI summary compatibility after upstream pi-ai export changes.
+
+### Fixed
+
+- AI summary and LLM-based time parsing no longer hard-code the private `@earendil-works/pi-ai/dist/stream.js` entry. `pi-daily` now prefers the supported `@earendil-works/pi-ai/compat` export and only falls back to the legacy `stream.js` path for older environments, fixing fallback errors like `Cannot find module .../dist/stream.js` after upstream `pi-ai` export changes.
+- `生成时间` / `Generated at` now uses the real local report-generation timestamp instead of letting the AI infer it from the reporting window. The structured facts sent to AI now include `generatedAt`, and local fallback rendering formats it as `YYYY-MM-DD HH:mm:ss`, preventing next-day timestamps such as `2026-06-24` from being shown for a `2026-06-23` report window.
+- Added regression tests for both the `pi-ai` loader compatibility path and the real generated-time path so future upstream export or rendering changes fail in test instead of at runtime.
+
 ## 0.1.2 - 2026-06-22
 
 Focus: LLM-first natural-language time parsing with regex fallback.

@@ -46,7 +46,7 @@ pi-daily/
 - `@earendil-works/pi-ai`、`@earendil-works/pi-coding-agent` 等 Pi 包可能是 ESM-only（仅支持 ESM 导入）并通过 `exports.import` 暴露入口，禁止用 `require()` 或 `createRequire()` 加载。
 - 为了绕开 `tsc` 类型检查变慢，也不能把 ESM-only 包改成 `require()`；这会在运行时报 `No "exports" main defined`，导致 AI 总结 fallback。
 - 如需避免 TypeScript 静态展开大依赖，优先用本地最小类型接口或动态 `import()`，并必须用 `node -e 'import("包名")'` 或相关测试验证运行时加载。
-- 动态加载 pi-ai 的正确姿势：用 `import.meta.resolve` 定位包根，拼出窄入口（如 `dist/stream.js`）的 file URL，再用**变量 specifier 的标准动态 `import(url)`**。不要用 `new Function("return import(...)")`——jiti 运行时会报 `A dynamic import callback was not specified`。变量 specifier 能让 tsc 返回 `any` 不展开类型树，同时运行时 jiti 原生支持。
+- 动态加载 pi-ai 的正确姿势：优先用 `import.meta.resolve("@earendil-works/pi-ai/compat")` 加载官方兼容导出，旧环境再回退到包根旁的窄入口（如 `dist/stream.js`）file URL，并统一用**变量 specifier 的标准动态 `import(url)`**。不要用 `require()`、`createRequire()` 或 `new Function("return import(...)")`——前两者会撞 ESM `exports`，后者在 jiti 运行时会报 `A dynamic import callback was not specified`。变量 specifier 能让 `tsc` 返回 `any` 不展开类型树，同时运行时 jiti 原生支持。
 
 ## README 规则
 
@@ -70,7 +70,7 @@ npm run smoke   # handler 调用链 smoke test（加载 index.ts，mock ctx 跑 
 
 - **单元测试**只验纯函数（解析、渲染、脱敏），不覆盖 extension 入口。
 - **smoke test** 用 Node 原生 TS stripping 加载 `index.ts`，调用 `default(pi)` 让命令注册，再用 mock ctx 跑 handler，覆盖「入口 → 命令注册 → 参数解析 → 回退」整条链路。时间解析、窗口计算这类 bug 常常只在真实调用链里暴露，单元测试抓不到。
-- **`pi -ne -e index.ts`** 验证 extension 在 pi 的 jiti 加载器下能干净加载、命令注册不抛错。注意：`-p` 模式下 slash command 不会路由到 handler（pi 的输入解析层只在交互模式查命令），所以它只验证加载成功，不验证 handler 行为——handler 行为靠 smoke test。
+- **`pi -e index.ts`** 验证 extension 在 pi 的 jiti 加载器下能干净加载、命令注册不抛错。当前 Pi 版本里 `-ne -e` 会触发 inline extension（内联扩展）分支，只提供极简 `pi.on("input")` API，不适合验证 `registerCommand()` 型 extension。注意：`-p` 模式下 slash command 不会路由到 handler（pi 的输入解析层只在交互模式查命令），所以它只验证加载成功，不验证 handler 行为——handler 行为靠 smoke test。
 
 ### smoke test 约定
 
@@ -87,7 +87,7 @@ npm run smoke   # handler 调用链 smoke test（加载 index.ts，mock ctx 跑 
 1. 同步版本号：`package.json` + `package-lock.json`。
 2. 更新 `CHANGELOG.md`，把用户可见变更、文档变更和验证结果落到对应版本段。
 3. 确认 `package.json` 版本、`CHANGELOG.md` 版本段、`git tag v<x.y.z>` 三者一致。
-4. 运行验证：`npm run verify`（check + test + smoke）；发版前另跑一次 `pi -ne -e index.ts` 确认 pi 能干净加载，再手测 `/daily`。
+4. 运行验证：`npm run verify`（check + test + smoke）；发版前另跑一次 `pi -e index.ts` 确认 pi 能干净加载，再手测 `/daily`。
 5. 提交单一主题 commit，再 `git tag v<x.y.z>`。
 6. 发布：`npm publish`；发布后 `git push && git push --tags`。
 

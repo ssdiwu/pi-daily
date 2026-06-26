@@ -1,3 +1,4 @@
+import { loadPiAICompleteModule } from "./pi-ai-loader.ts";
 import { addDays, buildWindowLabel, getLocalDateString, startOfLocalDate } from "./time-window.ts";
 import type { TimeWindow } from "./types.ts";
 
@@ -42,13 +43,6 @@ function buildTimeParsePrompt(rawArgs: string, now: Date): string {
 	].join("\n");
 }
 
-function loadPiAIStream(): Promise<{ complete: (...args: any[]) => Promise<any> }> {
-	// 与 ai-summary.ts 同样的窄入口加载姿势：变量 specifier 动态 import，
-	// 避免 tsc 展开 pi-ai 类型树，运行时 jiti 原生支持。
-	const streamUrl = new URL("./stream.js", import.meta.resolve("@earendil-works/pi-ai")).href;
-	return import(streamUrl) as Promise<{ complete: (...args: any[]) => Promise<any> }>;
-}
-
 async function callCurrentModel(model: RuntimeModel, prompt: string, ctx: RuntimeContext): Promise<string> {
 	if (!model) throw new Error("current session model is not available");
 	const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
@@ -58,7 +52,7 @@ async function callCurrentModel(model: RuntimeModel, prompt: string, ctx: Runtim
 	const controller = new AbortController();
 	const timeoutId = setTimeout(() => controller.abort(new Error("pi-daily time-parse timed out")), AI_TIMEOUT_MS);
 	try {
-		const { complete } = await loadPiAIStream();
+		const { complete } = await loadPiAICompleteModule();
 		const response: any = await complete(
 			model,
 			{ messages: [{ role: "user", content: [{ type: "text", text: prompt }], timestamp: Date.now() }] },

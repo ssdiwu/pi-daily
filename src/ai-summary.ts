@@ -1,5 +1,6 @@
 import { redactText, truncateText } from "./redact.ts";
 import { languageForLocale, languageInstructionForLocale, type SupportedLanguage } from "./locale.ts";
+import { loadPiAICompleteModule } from "./pi-ai-loader.ts";
 import { reportLabelsFor, type ReportLabels } from "./report-labels.ts";
 import type { AISummaryResult, ProjectSummary, ReportModel, TimedText } from "./types.ts";
 
@@ -32,6 +33,7 @@ interface ProjectFacts {
 
 interface SummaryFacts {
 	date: string;
+	generatedAt: string;
 	window: string;
 	stats: ReportModel["stats"];
 	projects: ProjectFacts[];
@@ -78,6 +80,7 @@ function buildProjectFacts(project: ProjectSummary, maxItems: number): ProjectFa
 export function buildSummaryFacts(report: ReportModel, maxItems = MAX_ITEMS_PER_SECTION): SummaryFacts {
 	return {
 		date: report.date,
+		generatedAt: report.generatedAt,
 		window: report.window.label,
 		stats: report.stats,
 		projects: report.projects.map((project) => buildProjectFacts(project, maxItems)),
@@ -113,7 +116,7 @@ const SUMMARY_PROMPT_TEMPLATES: Record<SupportedLanguage, SummaryPromptTemplate>
 		sectionRequirement: (labels) => `每个项目或事项章节至少包含：${labels.progress}、${labels.outputs}、${labels.risks}、${labels.followUps}。`,
 		noReplayRule: "不要回放用户原始提问，不要逐条复述聊天记录。要合并同一项目/事项里的多轮对话，提炼成可交付结果和下一步动作。",
 		markdownStructureIntro: "严格输出 Markdown，并使用以下结构和本地化标题：",
-		titleMetaInstruction: (labels) => `在标题下方依次写：${labels.generatedAt}、${labels.window}（统计范围必须使用 facts.window）。`,
+		titleMetaInstruction: (labels) => `在标题下方依次写：${labels.generatedAt}（必须使用 facts.generatedAt）、${labels.window}（必须使用 facts.window）。`,
 		overviewInstruction: "用 3-5 条 bullet 概括今天做了哪几类事情。",
 		sampleProjectHeading1: "## <项目名或事项一>",
 		sampleProjectHeading2: "## <项目名或事项二>",
@@ -132,7 +135,7 @@ const SUMMARY_PROMPT_TEMPLATES: Record<SupportedLanguage, SummaryPromptTemplate>
 		sectionRequirement: (labels) => `每個專案或事項章節至少包含：${labels.progress}、${labels.outputs}、${labels.risks}、${labels.followUps}。`,
 		noReplayRule: "不要回放使用者原始提問，不要逐條複述聊天記錄。要合併同一專案 / 事項中的多輪對話，提煉成可交付結果和下一步動作。",
 		markdownStructureIntro: "請嚴格輸出 Markdown，並使用以下結構與本地化標題：",
-		titleMetaInstruction: (labels) => `在標題下方依序寫：${labels.generatedAt}、${labels.window}（統計範圍必須使用 facts.window）。`,
+		titleMetaInstruction: (labels) => `在標題下方依序寫：${labels.generatedAt}（必須使用 facts.generatedAt）、${labels.window}（統計範圍必須使用 facts.window）。`,
 		overviewInstruction: "用 3-5 條 bullet 概括今天完成了哪些類型的工作。",
 		sampleProjectHeading1: "## <專案名或事項一>",
 		sampleProjectHeading2: "## <專案名或事項二>",
@@ -151,7 +154,7 @@ const SUMMARY_PROMPT_TEMPLATES: Record<SupportedLanguage, SummaryPromptTemplate>
 		sectionRequirement: (labels) => `各プロジェクトまたは項目の章には少なくとも ${labels.progress}、${labels.outputs}、${labels.risks}、${labels.followUps} を含めてください。`,
 		noReplayRule: "ユーザーの元の質問を繰り返したり、会話履歴を逐語的に列挙したりしないでください。同一プロジェクト / 項目の複数ターンを統合し、成果と次のアクションに要約してください。",
 		markdownStructureIntro: "Markdown を厳密に出力し、以下の構造とローカライズ済み見出しを使用してください：",
-		titleMetaInstruction: (labels) => `タイトルの直下に ${labels.generatedAt} と ${labels.window} をこの順で書いてください（集計範囲には facts.window を必ず使用）。`,
+		titleMetaInstruction: (labels) => `タイトルの直下に ${labels.generatedAt} と ${labels.window} をこの順で書いてください（${labels.generatedAt} には facts.generatedAt、集計範囲には facts.window を必ず使用）。`,
 		overviewInstruction: "今日行った作業カテゴリを 3〜5 個の bullet で要約してください。",
 		sampleProjectHeading1: "## <プロジェクト名または作業項目1>",
 		sampleProjectHeading2: "## <プロジェクト名または作業項目2>",
@@ -170,7 +173,7 @@ const SUMMARY_PROMPT_TEMPLATES: Record<SupportedLanguage, SummaryPromptTemplate>
 		sectionRequirement: (labels) => `각 프로젝트 또는 항목 섹션에는 최소한 ${labels.progress}, ${labels.outputs}, ${labels.risks}, ${labels.followUps} 가 포함되어야 합니다.`,
 		noReplayRule: "사용자의 원문 질문을 반복하지 말고, 대화 기록을 줄줄이 재생하지 마세요. 같은 프로젝트 / 항목의 여러 턴을 합쳐 납품 가능한 결과와 다음 행동으로 정리하세요.",
 		markdownStructureIntro: "반드시 Markdown 으로 출력하고, 아래의 구조와 현지화된 제목을 사용하세요:",
-		titleMetaInstruction: (labels) => `제목 아래에 ${labels.generatedAt}, ${labels.window} 를 이 순서로 쓰세요(집계 범위는 반드시 facts.window 사용).`,
+		titleMetaInstruction: (labels) => `제목 아래에 ${labels.generatedAt}, ${labels.window} 를 이 순서로 쓰세요(${labels.generatedAt} 은 facts.generatedAt, 집계 범위는 facts.window 사용).`,
 		overviewInstruction: "오늘 한 작업 유형을 3~5개의 bullet 로 요약하세요.",
 		sampleProjectHeading1: "## <프로젝트명 또는 작업 항목 1>",
 		sampleProjectHeading2: "## <프로젝트명 또는 작업 항목 2>",
@@ -189,7 +192,7 @@ const SUMMARY_PROMPT_TEMPLATES: Record<SupportedLanguage, SummaryPromptTemplate>
 		sectionRequirement: (labels) => `Jeder Projekt- oder Arbeitspunkt-Abschnitt muss mindestens ${labels.progress}, ${labels.outputs}, ${labels.risks} und ${labels.followUps} enthalten.`,
 		noReplayRule: "Wiederhole nicht die ursprüngliche Nutzerfrage und liste den Chatverlauf nicht Zeile für Zeile auf. Fasse mehrere Runden desselben Projekts / Punkts zu Ergebnissen und nächsten Schritten zusammen.",
 		markdownStructureIntro: "Gib strikt Markdown aus und verwende die folgende Struktur mit lokalisierten Überschriften:",
-		titleMetaInstruction: (labels) => `Schreibe direkt unter die Überschrift zuerst ${labels.generatedAt}, dann ${labels.window} (für den Zeitraum muss facts.window verwendet werden).`,
+		titleMetaInstruction: (labels) => `Schreibe direkt unter die Überschrift zuerst ${labels.generatedAt}, dann ${labels.window} (für ${labels.generatedAt} muss facts.generatedAt verwendet werden, für den Zeitraum facts.window).`,
 		overviewInstruction: "Fasse die heutigen Arbeitskategorien in 3–5 Bullet Points zusammen.",
 		sampleProjectHeading1: "## <Projektname oder Arbeitspunkt 1>",
 		sampleProjectHeading2: "## <Projektname oder Arbeitspunkt 2>",
@@ -208,7 +211,7 @@ const SUMMARY_PROMPT_TEMPLATES: Record<SupportedLanguage, SummaryPromptTemplate>
 		sectionRequirement: (labels) => `Chaque section de projet ou d'élément doit au minimum contenir ${labels.progress}, ${labels.outputs}, ${labels.risks} et ${labels.followUps}.`,
 		noReplayRule: "Ne rejoue pas la question originale de l'utilisateur et ne récite pas l'historique conversationnel ligne par ligne. Fusionne les tours d'un même projet / élément pour dégager les résultats livrables et les prochaines actions.",
 		markdownStructureIntro: "Produis strictement du Markdown et utilise la structure suivante avec des titres localisés :",
-		titleMetaInstruction: (labels) => `Sous le titre, écris dans l'ordre ${labels.generatedAt} puis ${labels.window} (la période doit impérativement utiliser facts.window).`,
+		titleMetaInstruction: (labels) => `Sous le titre, écris dans l'ordre ${labels.generatedAt} puis ${labels.window} (${labels.generatedAt} doit utiliser facts.generatedAt et la période doit utiliser facts.window).`,
 		overviewInstruction: "Résume les grands types de travail du jour en 3 à 5 puces.",
 		sampleProjectHeading1: "## <Nom du projet ou élément de travail 1>",
 		sampleProjectHeading2: "## <Nom du projet ou élément de travail 2>",
@@ -227,7 +230,7 @@ const SUMMARY_PROMPT_TEMPLATES: Record<SupportedLanguage, SummaryPromptTemplate>
 		sectionRequirement: (labels) => `Cada sección de proyecto o elemento debe incluir al menos ${labels.progress}, ${labels.outputs}, ${labels.risks} y ${labels.followUps}.`,
 		noReplayRule: "No repitas la pregunta original del usuario ni recites el historial del chat línea por línea. Fusiona los turnos del mismo proyecto / elemento y destila resultados entregables y próximos pasos.",
 		markdownStructureIntro: "Devuelve estrictamente Markdown y usa la siguiente estructura con encabezados localizados:",
-		titleMetaInstruction: (labels) => `Debajo del título escribe, en este orden, ${labels.generatedAt} y ${labels.window} (el período debe usar facts.window).`,
+		titleMetaInstruction: (labels) => `Debajo del título escribe, en este orden, ${labels.generatedAt} y ${labels.window} (${labels.generatedAt} debe usar facts.generatedAt y el período debe usar facts.window).`,
 		overviewInstruction: "Resume los tipos de trabajo de hoy en 3 a 5 viñetas.",
 		sampleProjectHeading1: "## <Nombre del proyecto o tarea 1>",
 		sampleProjectHeading2: "## <Nombre del proyecto o tarea 2>",
@@ -246,7 +249,7 @@ const SUMMARY_PROMPT_TEMPLATES: Record<SupportedLanguage, SummaryPromptTemplate>
 		sectionRequirement: (labels) => `Cada seção de projeto ou item deve incluir pelo menos ${labels.progress}, ${labels.outputs}, ${labels.risks} e ${labels.followUps}.`,
 		noReplayRule: "Não repita a pergunta original do usuário nem reencene o histórico do chat linha por linha. Una os turnos do mesmo projeto / item e resuma em entregas e próximos passos.",
 		markdownStructureIntro: "Produza estritamente em Markdown e use a seguinte estrutura com títulos localizados:",
-		titleMetaInstruction: (labels) => `Logo abaixo do título, escreva ${labels.generatedAt} e ${labels.window}, nessa ordem (o período deve usar facts.window).`,
+		titleMetaInstruction: (labels) => `Logo abaixo do título, escreva ${labels.generatedAt} e ${labels.window}, nessa ordem (${labels.generatedAt} deve usar facts.generatedAt e o período deve usar facts.window).`,
 		overviewInstruction: "Resuma os tipos de trabalho de hoje em 3 a 5 bullets.",
 		sampleProjectHeading1: "## <Nome do projeto ou item de trabalho 1>",
 		sampleProjectHeading2: "## <Nome do projeto ou item de trabalho 2>",
@@ -265,7 +268,7 @@ const SUMMARY_PROMPT_TEMPLATES: Record<SupportedLanguage, SummaryPromptTemplate>
 		sectionRequirement: (labels) => `Каждый раздел проекта или пункта должен как минимум содержать ${labels.progress}, ${labels.outputs}, ${labels.risks} и ${labels.followUps}.`,
 		noReplayRule: "Не повторяй исходный вопрос пользователя и не пересказывай чат построчно. Объединяй несколько ходов по одному проекту / пункту и выделяй результаты и следующие шаги.",
 		markdownStructureIntro: "Строго выдай Markdown и используй следующую структуру с локализованными заголовками:",
-		titleMetaInstruction: (labels) => `Сразу под заголовком укажи ${labels.generatedAt}, затем ${labels.window} (для периода обязательно используй facts.window).`,
+		titleMetaInstruction: (labels) => `Сразу под заголовком укажи ${labels.generatedAt}, затем ${labels.window} (${labels.generatedAt} обязательно бери из facts.generatedAt, для периода используй facts.window).`,
 		overviewInstruction: "Кратко опиши основные типы работ за сегодня в 3–5 пунктах.",
 		sampleProjectHeading1: "## <Название проекта или рабочего пункта 1>",
 		sampleProjectHeading2: "## <Название проекта или рабочего пункта 2>",
@@ -284,7 +287,7 @@ const SUMMARY_PROMPT_TEMPLATES: Record<SupportedLanguage, SummaryPromptTemplate>
 		sectionRequirement: (labels) => `يجب أن يحتوي كل قسم مشروع أو عنصر على الأقل على ${labels.progress} و${labels.outputs} و${labels.risks} و${labels.followUps}.`,
 		noReplayRule: "لا تعِد سؤال المستخدم الأصلي ولا تسرد سجل المحادثة سطراً بسطر. ادمج الجولات الخاصة بالمشروع / العنصر نفسه واستخلص النتائج القابلة للتسليم والخطوات التالية.",
 		markdownStructureIntro: "أخرج النتيجة بصيغة Markdown فقط، واستخدم البنية التالية مع العناوين المترجمة:",
-		titleMetaInstruction: (labels) => `تحت العنوان مباشرة اكتب ${labels.generatedAt} ثم ${labels.window} بهذا الترتيب (يجب استخدام facts.window للنطاق الزمني).`,
+		titleMetaInstruction: (labels) => `تحت العنوان مباشرة اكتب ${labels.generatedAt} ثم ${labels.window} بهذا الترتيب (يجب استخدام facts.generatedAt لـ ${labels.generatedAt} و facts.window للنطاق الزمني).`,
 		overviewInstruction: "لخّص أنواع العمل التي أُنجزت اليوم في 3 إلى 5 نقاط تعداد.",
 		sampleProjectHeading1: "## <اسم المشروع أو عنصر العمل 1>",
 		sampleProjectHeading2: "## <اسم المشروع أو عنصر العمل 2>",
@@ -303,7 +306,7 @@ const SUMMARY_PROMPT_TEMPLATES: Record<SupportedLanguage, SummaryPromptTemplate>
 		sectionRequirement: (labels) => `Each project or work-item section must include at least ${labels.progress}, ${labels.outputs}, ${labels.risks}, and ${labels.followUps}.`,
 		noReplayRule: "Do not replay the user's raw prompt or summarize the chat turn by turn. Merge multiple turns for the same project or item into deliverables and next actions.",
 		markdownStructureIntro: "Output strict Markdown and use the following localized structure and headings:",
-		titleMetaInstruction: (labels) => `Under the title, write ${labels.generatedAt} and ${labels.window} in that order (the time window must use facts.window).`,
+		titleMetaInstruction: (labels) => `Under the title, write ${labels.generatedAt} and ${labels.window} in that order (${labels.generatedAt} must use facts.generatedAt and the time window must use facts.window).`,
 		overviewInstruction: "Use 3-5 bullets to summarize the main categories of work completed today.",
 		sampleProjectHeading1: "## <Project or work item 1>",
 		sampleProjectHeading2: "## <Project or work item 2>",
@@ -361,14 +364,6 @@ export function buildSummaryPrompt(report: ReportModel, maxItems = MAX_ITEMS_PER
 	].join("\n\n");
 }
 
-// 加载 @earendil-works/pi-ai 的窄入口 stream.js（只含 complete/completeSimple），避免导入整个包入口。
-// 用变量 specifier 的标准动态 import：运行时 jiti 原生支持；tsc 因非字面量 specifier 返回 any，不展开 pi-ai 类型树（否则 tsc 会卡在 openai 等传递依赖）。
-async function loadPiAIStream(): Promise<{ complete: (...args: any[]) => Promise<any> }> {
-	const streamUrl = new URL("./stream.js", import.meta.resolve("@earendil-works/pi-ai")).href;
-	const mod: any = await import(streamUrl);
-	return mod as { complete: (...args: any[]) => Promise<any> };
-}
-
 async function callCurrentModel(model: RuntimeModel, promptText: string, ctx: RuntimeContext): Promise<string> {
 	if (!model) {
 		throw new Error("current session model is not available");
@@ -389,7 +384,7 @@ async function callCurrentModel(model: RuntimeModel, promptText: string, ctx: Ru
 	const controller = new AbortController();
 	const timeoutId = setTimeout(() => controller.abort(new Error("pi-daily AI summary timed out")), AI_TIMEOUT_MS);
 	try {
-		const { complete } = await loadPiAIStream();
+		const { complete } = await loadPiAICompleteModule();
 		const response: any = await complete(
 			model,
 			{

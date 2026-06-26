@@ -25,6 +25,10 @@ export function formatLocalDateTime(date: Date): string {
 	return `${getLocalDateString(date)} ${formatTimePart(date.getHours())}:${formatTimePart(date.getMinutes())}`;
 }
 
+export function formatLocalTimestamp(date: Date): string {
+	return `${getLocalDateString(date)} ${formatTimePart(date.getHours())}:${formatTimePart(date.getMinutes())}:${formatTimePart(date.getSeconds())}`;
+}
+
 export function parseTime(value: string): TimeParts | undefined {
 	const match = value.match(TIME_PATTERN);
 	if (!match) return undefined;

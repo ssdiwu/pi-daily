@@ -2,7 +2,7 @@ import { parseDailyArgsAsync } from "./src/args.ts";
 import { buildDailyReport, saveDailyReport } from "./src/daily.ts";
 import type { ReportStats } from "./src/types.ts";
 
-const PI_DAILY_BUILD = "0.0.1-ts-2026-06-12";
+const PI_DAILY_BUILD = "0.1.3";
 
 interface DailyReportDetails {
 	build: string;

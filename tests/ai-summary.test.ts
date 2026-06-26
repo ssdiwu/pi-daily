@@ -56,6 +56,7 @@ test("buildSummaryFacts returns redacted structured facts", () => {
 	assert.equal(facts.signals[0].type, "completed");
 	assert.equal(facts.projects[0].name, "pi-daily");
 	assert.equal(facts.projects[1].name, "ai-database-vault");
+	assert.equal(facts.generatedAt, "2026-06-12T00:00:00.000Z");
 	assert.equal(facts.window, "2026-06-12 00:00 → 2026-06-13 00:00");
 });
 
@@ -71,6 +72,8 @@ test("buildSummaryPrompt includes markdown instructions and facts", () => {
 	assert.match(prompt, /今日概览/);
 	assert.match(prompt, /请用简体中文输出整份日报/);
 	assert.match(prompt, /统计范围/);
+	assert.match(prompt, /facts\.generatedAt/);
+	assert.match(prompt, /"generatedAt": "2026-06-12T00:00:00.000Z"/);
 	assert.match(prompt, /结构化事实 JSON/);
 });
 

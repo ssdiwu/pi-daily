@@ -14,7 +14,13 @@ const sessions = [
 ];
 
 test('buildDailyReport can use injected session root data', async () => {
-	const { report } = await buildDailyReport('2026-06-12', { currentCwd: '/repo/pi-daily', sessionRoot: '/does/not/matter' });
+	const now = new Date('2026-06-24T06:37:30');
+	const { report, markdown } = await buildDailyReport('2026-06-12', {
+		currentCwd: '/repo/pi-daily',
+		sessionRoot: '/does/not/matter',
+		now,
+	});
 	assert.equal(report.date, '2026-06-12');
-	assert.equal(typeof report.generatedAt, 'string');
+	assert.equal(report.generatedAt, '2026-06-24 06:37:30');
+	assert.match(markdown, /生成时间：2026-06-24 06:37:30/);
 });

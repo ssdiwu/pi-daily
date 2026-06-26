@@ -69,11 +69,13 @@ test("buildReportModel can include overnight work in a custom window", () => {
 		date: "2026-06-12",
 		window: { start: new Date("2026-06-12T18:00:00"), end: new Date("2026-06-13T02:00:00"), label: "2026-06-12 18:00 → 2026-06-13 02:00" },
 		sessions: [overnightSession],
+		now: new Date("2026-06-13T09:15:30"),
 	});
 	assert.equal(report.stats.sessionCount, 1);
 	assert.equal(report.tasks[0].text, "继续修复日报时间窗口");
 	assert.equal(report.completed[0].text, "已完成时间窗口支持");
 	assert.equal(report.window.label, "2026-06-12 18:00 → 2026-06-13 02:00");
+	assert.equal(report.generatedAt, "2026-06-13 09:15:30");
 });
 
 test("renderMarkdownReport renders expected sections in zh-CN", () => {

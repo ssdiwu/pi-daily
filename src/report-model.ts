@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { scanSessions } from "./session-scan.ts";
 import { createDefaultWindow, filterSessionsByWindow } from "./session-extract.ts";
+import { formatLocalTimestamp } from "./time-window.ts";
 import type { DailyProjectFilter, ParsedSession, ProjectSummary, ReportModel, ScanError, SessionActivity, TimeWindow, TimedText, ToolCount } from "./types.ts";
 
 export interface BuildReportModelInput {
@@ -12,6 +13,7 @@ export interface BuildReportModelInput {
 	scanErrors?: ScanError[];
 	projectFilter?: DailyProjectFilter;
 	currentCwd?: string;
+	now?: Date;
 }
 
 export interface GenerateDailyReportOptions {
@@ -20,6 +22,7 @@ export interface GenerateDailyReportOptions {
 	project?: DailyProjectFilter;
 	currentCwd?: string;
 	sessionRoot?: string;
+	now?: Date;
 }
 
 function uniqueByText<T extends TimedText | string>(items: T[], limit = 12): T[] {
@@ -102,7 +105,7 @@ function buildProjects(activities: SessionActivity[]): ProjectSummary[] {
 	}));
 }
 
-export function buildReportModel({ date, window = createDefaultWindow(date), sessions, scanErrors = [], projectFilter = "all", currentCwd = "" }: BuildReportModelInput): ReportModel {
+export function buildReportModel({ date, window = createDefaultWindow(date), sessions, scanErrors = [], projectFilter = "all", currentCwd = "", now = new Date() }: BuildReportModelInput): ReportModel {
 	let sessionActivities = filterSessionsByWindow(sessions, date, window).map(({ activity }) => activity);
 	if (projectFilter === "current" && currentCwd) {
 		sessionActivities = sessionActivities.filter((activity) => path.resolve(activity.cwd || ".") === path.resolve(currentCwd));
@@ -125,7 +128,7 @@ export function buildReportModel({ date, window = createDefaultWindow(date), ses
 	return {
 		date,
 		window,
-		generatedAt: new Date().toISOString(),
+		generatedAt: formatLocalTimestamp(now),
 		projectFilter,
 		currentCwd,
 		stats: {
@@ -161,5 +164,6 @@ export async function generateDailyReportModel(options: GenerateDailyReportOptio
 		scanErrors: scanResult.errors,
 		projectFilter: options.project || "all",
 		currentCwd: options.currentCwd || "",
+		now: options.now,
 	});
 }

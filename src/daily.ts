@@ -17,6 +17,7 @@ export async function buildDailyReport(rawArgs = "", runtime: BuildDailyRuntime 
 		project: options.project,
 		currentCwd: runtime.currentCwd || "",
 		sessionRoot: runtime.sessionRoot,
+		now: runtime.now,
 	});
 	const fallbackMarkdown = renderMarkdownReport(report, locale);
 	if (!runtime.ctx) {
